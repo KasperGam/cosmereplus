@@ -5,7 +5,7 @@ import { GetAttachmentsResult } from "./GetAttachmentsResult";
 import { Attachment } from "./Attachment";
 import { Agent } from "https";
 import FormData from "form-data";
-import { ConfluencePage } from "../UpdatePage";
+import { ConfluencePage } from "../types/ConfluencePage";
 
 export class ConfluenceAPI {
     private readonly baseUrl: string;
@@ -13,6 +13,7 @@ export class ConfluenceAPI {
         Authorization: string;
     };
     private readonly agent: Agent;
+    private readonly expandPageParams: String;
 
     constructor(baseUrl: string, authorizationToken: string, insecure: boolean) {
         this.baseUrl = baseUrl;
@@ -22,6 +23,23 @@ export class ConfluenceAPI {
         this.agent = new (require("https").Agent)({
             rejectUnauthorized: !insecure,
         });
+        this.expandPageParams = `body.storage,version,ancestors,space`;
+    }
+
+    async getConfluenceSpace(key: string) {
+        return axios.get(`${this.baseUrl}/space/${key}`, this.config());
+    }
+
+    async createConfluencePage(newPage: ConfluencePage) {
+        try {
+            const response = await axios.post(`${this.baseUrl}/content?expand=${this.expandPageParams}`, newPage, this.config());
+            return response.data;
+        } catch (e: any) {
+            signale.error(e?.response?.data?.message ?? e);
+            signale.await(`First attempt failed, retrying ...`);
+            const response = await axios.post(`${this.baseUrl}/content?expand=${this.expandPageParams}`, newPage, this.config());
+            return response.data;
+        }
     }
 
     async updateConfluencePage(pageId: string, newPage: ConfluencePage) {
@@ -71,8 +89,19 @@ export class ConfluenceAPI {
         }
     }
 
+    async pageWithName(pageTitle: string, space?: string) {
+        const params = [];
+        params.push(`title=${encodeURIComponent(pageTitle)}`);
+        if(space) {
+            params.push(`spaceKey=${encodeURIComponent(space)}`);
+        }
+        params.push(`expand=${this.expandPageParams}`);
+
+        return axios.get(`${this.baseUrl}/content?${params.join(`&`)}`, this.config());
+    }
+
     async currentPage(pageId: string) {
-        return axios.get(`${this.baseUrl}/content/${pageId}?expand=body.storage,version`, this.config());
+        return axios.get(`${this.baseUrl}/content/${pageId}?expand=${this.expandPageParams}`, this.config());
     }
 
     private config() {

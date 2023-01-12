@@ -1,9 +1,10 @@
-import { ConfluencePage } from "../../src/UpdatePage";
+
 import { ConfluenceAPI } from "../../src/api/ConfluenceAPI";
 import axios from "axios";
 import { Agent } from "https";
 import { Attachment } from "../../src/api/Attachment";
 import signale from "signale";
+import { ConfluencePage } from "../../src/types/ConfluencePage";
 
 jest.mock("axios");
 jest.mock("signale");
@@ -114,6 +115,7 @@ describe("ConfluenceAPI", () => {
 
     const confluencePage: ConfluencePage = {
         title: "string",
+        type: "page",
         body: {
             storage: {
                 value: "string",
@@ -123,5 +125,10 @@ describe("ConfluenceAPI", () => {
         version: {
             number: "1.0",
         },
+        space: {
+            id: 1,
+            key: "",
+            name: ""
+        }
     };
 });

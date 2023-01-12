@@ -110,6 +110,7 @@ export class FileConfigLoader {
             pages: fileConfig.pages,
             configPath: fileConfig.configPath,
             authorizationToken: authorizationToken,
+            spaceKey: fileConfig.spaceKey,
         };
     }
 }

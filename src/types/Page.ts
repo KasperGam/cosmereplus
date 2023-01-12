@@ -1,5 +1,6 @@
 export type Page = {
-    pageId: string;
+    pageId?: string;
+    parentId?: string;
     file: string;
-    title?: string;
+    title: string;
 };

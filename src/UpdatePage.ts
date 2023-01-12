@@ -8,19 +8,8 @@ import signale from "signale";
 import { Picture } from "./Picture";
 import { marked } from "marked";
 import { Attachment } from "./api/Attachment";
-
-export type ConfluencePage = {
-    title: string;
-    body: {
-        storage: {
-            value: string;
-            representation: "storage";
-        };
-    };
-    version: {
-        number: string;
-    };
-};
+import { ConfluencePage } from "./types/ConfluencePage";
+import { ConfluenceSpace } from "./types/ConfluenceSpace";
 
 function mkdir(cachePath: string) {
     if (process.version.match(/^v\d\d\./)) {
@@ -130,7 +119,11 @@ async function updateAttachments(
     confluenceAPI: ConfluenceAPI,
     force: boolean,
 ) {
-    const remoteAttachments = (await confluenceAPI.getAttachments(pageData.pageId)).results;
+    const id = pageData.pageId;
+    if(!id) { 
+        return mdWikiData;
+    }
+    const remoteAttachments = (await confluenceAPI.getAttachments(id)).results;
     let attachments = extractAttachmentsFromPage(pageData, mdWikiData).map((attachment) =>
         mapLocalToRemoteAttachments(attachment, remoteAttachments),
     );
@@ -145,7 +138,7 @@ async function updateAttachments(
 
         signale.await(`Uploading attachment "${attachment.remoteFileName}" for "${pageData.title}" ...`);
         try {
-            await confluenceAPI.uploadAttachment(temporaryAttachmentPath, pageData.pageId);
+            await confluenceAPI.uploadAttachment(temporaryAttachmentPath, id);
         } finally {
             fs.unlinkSync(temporaryAttachmentPath);
         }
@@ -159,22 +152,41 @@ function increaseVersionNumber(versionNumber: string) {
     return (parseInt(versionNumber, 10) + 1).toString();
 }
 
-async function sendChangedPage(
+async function sendPageToConfluence(
     confluencePage: ConfluencePage,
     pageData: Page,
     mdWikiData: string | void | any,
     confluenceAPI: ConfluenceAPI,
 ) {
-    confluencePage.title = pageData.title ?? confluencePage.title;
+    confluencePage.title = pageData.title;
     confluencePage.body = {
         storage: {
             value: mdWikiData,
             representation: "storage",
         },
     };
-    confluencePage.version.number = increaseVersionNumber(confluencePage.version.number);
-    signale.await(`Update page "${pageData.title}" ...`);
-    await confluenceAPI.updateConfluencePage(pageData.pageId, confluencePage);
+
+    if(pageData.parentId) {
+        confluencePage.ancestors = [
+            { id: pageData.parentId },
+        ];
+    }
+
+    if(confluencePage.version) {
+        confluencePage.version = { number: increaseVersionNumber(confluencePage.version?.number ?? `1`) };
+    }
+
+    if(pageData.pageId) {
+        signale.await(`Update page "${pageData.title}" ...`);
+        await confluenceAPI.updateConfluencePage(pageData.pageId, confluencePage);
+    } else {
+        signale.await(`Creating page "${pageData.title}" ...`);
+        const data = await confluenceAPI.createConfluencePage(confluencePage);
+        if(!data) {
+            throw new Error(`Creating page failed: ${pageData.title}`);
+        }
+        return data;
+    }
 }
 
 function addPrefix(config: Config, mdWikiData: string) {
@@ -187,7 +199,44 @@ ${mdWikiData}`
         : mdWikiData;
 }
 
-export async function updatePage(confluenceAPI: ConfluenceAPI, pageData: Page, config: Config, force: boolean) {
+function newBlankPage(space: ConfluenceSpace): ConfluencePage {
+    return {
+        title: ``,
+        type: `page`,
+        version: {
+            number: `1`
+        },
+        body: {
+            storage: {
+                value: ``,
+                representation: `storage`,
+            }
+        },
+        space,
+    }
+}
+
+async function sendPageUpdate(pageData: Page, config: Config, mdWikiData: string, cachePath: string, confluenceAPI: ConfluenceAPI, force: boolean) {
+    if(!pageData.pageId) {
+        return;
+    }
+
+    mdWikiData = await updateAttachments(mdWikiData, pageData, cachePath, confluenceAPI, force);
+    signale.await(`Fetch current page for "${pageData.title}" ...`);
+    const pagePathFromConfig = pageData.file.replace(path.dirname(config.configPath) + "/", "");
+
+    const confluencePage = (await confluenceAPI.currentPage(pageData.pageId)).data;
+    if (!force && !isRemoteUpdateRequired(mdWikiData, confluencePage)) {
+        signale.success(`No change in remote version for "${pagePathFromConfig}" detected, no update necessary`);
+        return;
+    }
+    const tempFile = `${cachePath}/${pageData.pageId}`;
+
+    fs.writeFileSync(tempFile, mdWikiData, "utf-8");
+    await sendPageToConfluence(confluencePage, pageData, mdWikiData, confluenceAPI);
+}
+
+export async function updatePage(confluenceAPI: ConfluenceAPI, pageData: Page, config: Config, space: ConfluenceSpace | null, force: boolean) {
     const pagePathFromConfig = pageData.file.replace(path.dirname(config.configPath) + "/", "");
     signale.start(`Starting to render "${pagePathFromConfig}"`);
     let mdWikiData = convertToWikiFormat(pageData, config);
@@ -213,16 +262,56 @@ export async function updatePage(confluenceAPI: ConfluenceAPI, pageData: Page, c
         return;
     }
 
-    mdWikiData = await updateAttachments(mdWikiData, pageData, cachePath, confluenceAPI, force);
-    signale.await(`Fetch current page for "${pageData.title}" ...`);
-    const confluencePage = (await confluenceAPI.currentPage(pageData.pageId)).data;
-    if (!force && !isRemoteUpdateRequired(mdWikiData, confluencePage)) {
-        signale.success(`No change in remote version for "${pagePathFromConfig}" detected, no update necessary`);
+    const existingID = pageData.pageId;
+    if(existingID) {
+        await sendPageUpdate(pageData, config, mdWikiData, cachePath, confluenceAPI, force);
+    } else {
+        // Try to find page
+        try {
+            const findPageResponse = (await confluenceAPI.pageWithName(pageData.title, config.spaceKey));
+            const data = findPageResponse.data;
+            if(data.results && data.results.length > 0) {
+                const matchingID = data.results[0].id;
+                pageData.pageId = matchingID;
+                await sendPageUpdate(pageData, config, mdWikiData, cachePath, confluenceAPI, force);
+            } else {
+                // Not found, creating page
+                signale.await(`Could not find page ${pageData.title} on Confluence. Creating new page...`);
+                if (!space) {
+                    signale.error(`No space specified in config. Aborting creating new page...`);
+                    return;
+                } else {
+                    const newConfluencePage = newBlankPage(space);
+                    const postedPageData = await sendPageToConfluence(newConfluencePage, pageData, mdWikiData, confluenceAPI);
+                    if(postedPageData && postedPageData.id) {
+                        pageData.pageId = postedPageData.id;
+                        await sendPageUpdate(pageData, config, mdWikiData, cachePath, confluenceAPI, force);
+                    }
+                }
+            }
+        } catch(e: any) {
+            signale.await(`Could not find page ${pageData.title} on Confluence. Creating new page...`);
+            if (!space) {
+                signale.error(`No space specified in config. Aborting creating new page...`);
+                return;
+            } else {
+                const newConfluencePage = newBlankPage(space);
+                const postedPageData = await sendPageToConfluence(newConfluencePage, pageData, mdWikiData, confluenceAPI);
+                if(postedPageData && postedPageData.id) {
+                    pageData.pageId = postedPageData.id;
+                    await sendPageUpdate(pageData, config, mdWikiData, cachePath, confluenceAPI, force);
+                }
+            }
+        }
+    }
+
+    if(!pageData.pageId) {
+        signale.error(`There was an error uploading or syncing new page to confluence: ${pageData.title}`);
         return;
     }
 
-    fs.writeFileSync(tempFile, mdWikiData, "utf-8");
-    await sendChangedPage(confluencePage, pageData, mdWikiData, confluenceAPI);
+    const confluencePage = (await confluenceAPI.currentPage(pageData.pageId)).data;
+
     const confluenceUrl = config.baseUrl.replace("rest/api", "").replace(/\/$/, "");
     signale.success(
         `"${confluencePage.title}" saved in confluence (${confluenceUrl}/pages/viewpage.action?pageId=${pageData.pageId}).`,

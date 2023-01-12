@@ -26,6 +26,7 @@ describe("MainCommand", () => {
             randomPages.push({
                 pageId: generateRandomString(),
                 file: generateRandomString(),
+                title: generateRandomString(),
             });
         }
         const config: Config = {

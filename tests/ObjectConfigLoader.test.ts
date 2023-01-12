@@ -13,6 +13,7 @@ describe("ObjectConfigLoader", () => {
             {
                 pageId: "123456789",
                 file: "./tests/README.md",
+                title: "title",
             },
         ],
         insecure: false,
@@ -30,6 +31,7 @@ describe("ObjectConfigLoader", () => {
             {
                 pageId: "123456789",
                 file: "./tests/README.md",
+                title: "title",
             },
         ],
         insecure: false,
@@ -59,6 +61,7 @@ describe("ObjectConfigLoader", () => {
             {
                 file: __dirname + "/README.md",
                 pageId: "123456789",
+                title: "title",
             },
         ],
         prefix: "This document is automatically generated. Please don't edit it directly!",

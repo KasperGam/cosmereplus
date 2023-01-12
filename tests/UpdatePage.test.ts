@@ -10,6 +10,7 @@ describe("UpdatePage", () => {
         const pageData: Page = {
             pageId: "123456789",
             file: "/dev/null",
+            title: "title",
         };
         const config: Config = {
             baseUrl: "string",
@@ -35,7 +36,7 @@ describe("UpdatePage", () => {
                 },
             },
         });
-        await expect(updatePage(confluenceApi, pageData, config, false)).rejects.toThrow(
+        await expect(updatePage(confluenceApi, pageData, config, null, false)).rejects.toThrow(
             "Missing title property in config and no title found in markdown.",
         );
     });
@@ -72,7 +73,7 @@ describe("UpdatePage", () => {
                 },
             },
         });
-        await updatePage(confluenceApi, pageData, config, false);
+        await updatePage(confluenceApi, pageData, config, null, false);
         expect(customRendererFunction.mock.calls.length).toBe(1);
     });
 });

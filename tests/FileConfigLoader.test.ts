@@ -27,6 +27,7 @@ describe("FileConfigLoader", () => {
             {
                 file: __dirname + "/resources/README.md",
                 pageId: "123456789",
+                title: "title",
             },
         ],
         prefix: "This document is automatically generated. Please don't edit it directly!",
