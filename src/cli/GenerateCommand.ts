@@ -8,14 +8,16 @@ export default function (configPath: string | null) {
   "baseUrl": "<your base url including /rest/api>",
   "user": "<your username>",
   "pass": "<your password>",
+  "spaceKey": "<optional space key>",
   "personalAccessToken": "<your personal access token (can be set instead of username/password)>",
   "cachePath": "build",
   "prefix": "This document is automatically generated. Please don't edit it directly!",
   "pages": [
     {
-      "pageId": "1234567890",
+      "pageId": "1234567890 - if you provide this it means you link it to an existing page by id in confluence. Leave blank to create a new page or search for page by name to update instead.",
       "file": "README.md",
-      "title": "Optional title in the confluence page, remove to use # h1 from markdown file instead"
+      "parentId": "1244505 - parent page id. Optional. If not provided will be top level page.",
+      "title": "Title for the page - required. If not unique could cause issues."
     }
   ]
 }
