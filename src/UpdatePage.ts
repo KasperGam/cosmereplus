@@ -158,6 +158,10 @@ async function sendPageToConfluence(
     mdWikiData: string | void | any,
     confluenceAPI: ConfluenceAPI,
 ) {
+    if(!pageData.title) {
+        signale.error(`Error- unable to set title for page at ${pageData.file}.`);
+        return;
+    }
     confluencePage.title = pageData.title;
     confluencePage.body = {
         storage: {
@@ -267,6 +271,10 @@ export async function updatePage(confluenceAPI: ConfluenceAPI, pageData: Page, c
         await sendPageUpdate(pageData, config, mdWikiData, cachePath, confluenceAPI, force);
     } else {
         // Try to find page
+        if(!pageData.title) {
+            signale.error(`Unable to set page title for file at ${pageData.file}.`);
+            return;
+        }
         try {
             const findPageResponse = (await confluenceAPI.pageWithName(pageData.title, config.spaceKey));
             const data = findPageResponse.data;
