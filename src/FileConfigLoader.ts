@@ -111,6 +111,7 @@ export class FileConfigLoader {
             configPath: fileConfig.configPath,
             authorizationToken: authorizationToken,
             spaceKey: fileConfig.spaceKey,
+            defaultParentPageId: fileConfig.defaultParentPageId,
         };
     }
 }

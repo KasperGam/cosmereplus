@@ -11,6 +11,7 @@ export default function (configPath: string | null) {
   "spaceKey": "<optional space key>",
   "personalAccessToken": "<your personal access token (can be set instead of username/password)>",
   "cachePath": "build",
+  "defaultParentPageId": "2345678 - Optional, will default all pages to this parent if the page does not set its own parent.",
   "prefix": "This document is automatically generated. Please don't edit it directly!",
   "pages": [
     {

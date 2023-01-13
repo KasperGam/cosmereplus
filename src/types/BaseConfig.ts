@@ -5,5 +5,6 @@ export type BaseConfig = {
     cachePath: string;
     prefix: string;
     spaceKey?: string;
+    defaultParentPageId?: string;
     pages: Page[];
 };

@@ -175,6 +175,12 @@ async function sendPageToConfluence(
                 { id: parentId },
             ];
         }
+    } else {
+        if(config.defaultParentPageId) {
+            confluencePage.ancestors = [
+                { id: config.defaultParentPageId }
+            ]
+        }
     }
 
     if(confluencePage.version) {
