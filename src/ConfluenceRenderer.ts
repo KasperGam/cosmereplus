@@ -2,7 +2,9 @@ import { marked, Renderer } from "marked";
 import { Config } from "./types/Config";
 import { Page } from "./types/Page";
 import * as path from "path";
+import * as fs from "fs";
 import MarkedOptions = marked.MarkedOptions;
+import { extractTitle } from "./utils/MarkdownUtils";
 
 const escapeXmlCharacters = (s: string) => {
     return s
@@ -93,9 +95,20 @@ export default class ConfluenceRenderer extends Renderer<string> {
         const absolutePath = path.resolve(path.dirname(this.page.file), href);
         const match = this.config.pages.find((page) => page.file === absolutePath);
         if (match) {
-            href = `${this.config.baseUrl.replace("rest/api", "").replace(/\/$/, "")}/pages/viewpage.action?pageId=${
-                match.pageId
-            }`;
+            if(match.pageId) {
+                href = `${this.config.baseUrl.replace("rest/api", "").replace(/\/$/, "")}/pages/viewpage.action?pageId=${
+                    match.pageId
+                }`;
+            } else {
+                let title = match.title;
+                if(!title) {
+                    let fileData = fs.readFileSync(match.file, { encoding: "utf8" }).replace(/\|[ ]*\|/g, "|&nbsp;|");
+                    title = extractTitle(fileData)[0];
+                }
+                href = `${this.config.baseUrl.replace("rest/api", "").replace(/\/$/, "")}/pages/viewpage.action?title=${
+                    title
+                }&spaceKey=${this.config.spaceKey}`;
+            }
         }
         return href;
     }

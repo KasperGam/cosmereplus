@@ -14,6 +14,7 @@ export type ConfluencePage = {
     };
     ancestors?: { 
         id: string;
+        title?: string;
     }[];
     space: ConfluenceSpace;
 };
