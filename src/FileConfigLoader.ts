@@ -112,6 +112,8 @@ export class FileConfigLoader {
             authorizationToken: authorizationToken,
             spaceKey: fileConfig.spaceKey,
             defaultParentPageId: fileConfig.defaultParentPageId,
+            addTOC: fileConfig.addTOC,
+            replaceSectionWithTOC: fileConfig.replaceSectionWithTOC,
         };
     }
 }

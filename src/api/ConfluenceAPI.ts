@@ -23,7 +23,7 @@ export class ConfluenceAPI {
         this.agent = new (require("https").Agent)({
             rejectUnauthorized: !insecure,
         });
-        this.expandPageParams = `body.storage,version,ancestors,space`;
+        this.expandPageParams = `body.storage,version,ancestors,space,metadata.properties.editor`;
     }
 
     async getConfluenceSpace(key: string) {

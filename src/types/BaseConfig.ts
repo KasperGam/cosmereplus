@@ -6,5 +6,7 @@ export type BaseConfig = {
     prefix: string;
     spaceKey?: string;
     defaultParentPageId?: string;
+    addTOC?: boolean;
+    replaceSectionWithTOC?: string;
     pages: Page[];
 };

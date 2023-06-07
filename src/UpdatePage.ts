@@ -187,6 +187,14 @@ async function sendPageToConfluence(
         confluencePage.version = { number: increaseVersionNumber(confluencePage.version?.number ?? `1`) };
     }
 
+    if(confluencePage.metadata?.properties?.editor) {
+        confluencePage.metadata.properties.editor.value = `v2`;
+    } else if(confluencePage.metadata?.properties) {
+        confluencePage.metadata.properties.editor = {
+            value: `v2`,
+        }
+    }
+
     if(pageData.pageId) {
         signale.await(`Update page "${pageData.title}" ...`);
         await confluenceAPI.updateConfluencePage(pageData.pageId, confluencePage);
@@ -210,6 +218,33 @@ ${mdWikiData}`
         : mdWikiData;
 }
 
+function shouldAddToc(config: Config, pageData: Page): boolean {
+    return (pageData.addTOC === undefined)
+        ? (config.addTOC === undefined) ? false : config.addTOC
+        : pageData.addTOC;
+}
+
+function addTOC(config: Config, page: Page, mdWikiData: string) {
+    if (!shouldAddToc(config, page)) {
+        return mdWikiData;
+    }
+
+    const TOC = `<ac:structured-macro ac:name="toc" ac:schema-version="1"></ac:structured-macro>`
+    const sectionToReplace = config.replaceSectionWithTOC;
+
+    if(sectionToReplace) {
+        signale.info(`Replacing section ${sectionToReplace} with TOC macro`);
+        const regex = new RegExp(`(<h[1-6]).*?> *${sectionToReplace} *((.|\\n|\\r)*?)\\1`, `m`);
+        return mdWikiData.replace(regex, (match) => {
+            const tag = `${match.slice(0, `<h1`.length)}`;
+            return `${tag}>${sectionToReplace}${tag.replace(`<`, `</`)}>\n${TOC}\n${tag}`;
+        });
+    } else {
+        signale.info(`Adding TOC macro to page`);
+        return `${TOC}\n\n${mdWikiData}`
+    }
+}
+
 function newBlankPage(space: ConfluenceSpace): ConfluencePage {
     return {
         title: ``,
@@ -224,6 +259,13 @@ function newBlankPage(space: ConfluenceSpace): ConfluencePage {
             }
         },
         space,
+        metadata: {
+            properties: {
+                editor: {
+                    value: `v2`
+                }
+            }
+        }
     }
 }
 
@@ -251,6 +293,7 @@ export async function updatePage(confluenceAPI: ConfluenceAPI, pageData: Page, c
     const pagePathFromConfig = pageData.file.replace(path.dirname(config.configPath) + "/", "");
     signale.start(`Starting to render "${pagePathFromConfig}"`);
     let mdWikiData = convertToWikiFormat(pageData, config);
+    mdWikiData = addTOC(config, pageData, mdWikiData);
     mdWikiData = addPrefix(config, mdWikiData);
 
     const cachePath = getCachePath(config);

@@ -12,6 +12,13 @@ export type ConfluencePage = {
     version?: {
         number: string;
     };
+    metadata?: {
+        properties?: {
+            editor?: {
+                value?: string;
+            }
+        }
+    }
     ancestors?: { 
         id: string;
         title?: string;

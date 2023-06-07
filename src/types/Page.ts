@@ -4,4 +4,5 @@ export type Page = {
     parentPage?: string;
     file: string;
     title?: string;
+    addTOC?: boolean;
 };
