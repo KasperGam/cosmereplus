@@ -187,11 +187,13 @@ async function sendPageToConfluence(
         confluencePage.version = { number: increaseVersionNumber(confluencePage.version?.number ?? `1`) };
     }
 
-    if(confluencePage.metadata?.properties?.editor) {
-        confluencePage.metadata.properties.editor.value = `v2`;
-    } else if(confluencePage.metadata?.properties) {
-        confluencePage.metadata.properties.editor = {
-            value: `v2`,
+    const editor = confluencePage.metadata?.properties?.editor ?? {};
+    confluencePage.metadata = {
+        properties: {
+            editor: {
+                ...editor,
+                value: `v2`,
+            }
         }
     }
 
